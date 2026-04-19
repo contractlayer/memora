@@ -12,7 +12,6 @@ import {
 } from '@main/services/chunk-location';
 import type { SqliteMetadataStore } from '@main/storage/metadata';
 import type { LanceVectorStore } from '@main/services/vector-store';
-import { awaitCpuBelow } from '@main/services/cpu-throttle';
 
 export type IndexerEvents = {
   progress: { queued: number; inFlight: number; completedToday: number };
@@ -23,8 +22,13 @@ export type IndexerEvents = {
 export class IndexerService extends EventEmitter {
   private running = false;
   private completedToday = 0;
+  private currentFile: string | null = null;
   // Per-source connectors, keyed by sourceId, so we can read files through them.
   private readonly connectors = new Map<string, LocalFileConnector>();
+
+  getCurrentFile(): string | null {
+    return this.currentFile;
+  }
 
   constructor(
     private readonly store: SqliteMetadataStore,
@@ -85,12 +89,10 @@ export class IndexerService extends EventEmitter {
         await sleep(500);
         continue;
       }
-      // Back off when the system is under load so indexing doesn't spin
-      // the fan while the user is working.
-      await awaitCpuBelow(0.7, 'indexer');
       // Log every file we process so that if Electron dies mid-job the log
       // tells us exactly which file was in flight.
       console.log(`[indexer] ${job.kind} ${job.path}`);
+      this.currentFile = job.path;
       try {
         if (job.kind === 'parse') {
           await this.processParseJob(job.path, job.sourceId);
@@ -104,6 +106,8 @@ export class IndexerService extends EventEmitter {
         console.error(`[indexer] job failed: ${job.path}`, err);
         this.store.failJob(job.id, msg);
         this.emit('fileFailed', { path: job.path, error: msg });
+      } finally {
+        this.currentFile = null;
       }
       this.emitProgress();
     }

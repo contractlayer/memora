@@ -43,6 +43,8 @@ export type SearchHitRow = {
   metadata: string | null;
   path: string;
   mime: string;
+  /** ISO timestamp of the file's mtime — used for date-range filtering. */
+  mtime: string;
   bm25: number;
 };
 
@@ -294,6 +296,26 @@ export class SqliteMetadataStore {
     return row?.n ?? 0;
   }
 
+  countFiles(): number {
+    const row = this.must().prepare<[], { n: number }>('SELECT COUNT(*) AS n FROM files').get();
+    return row?.n ?? 0;
+  }
+
+  countIndexedFiles(): number {
+    const row = this.must()
+      .prepare<[], { n: number }>('SELECT COUNT(*) AS n FROM files WHERE indexed_at IS NOT NULL')
+      .get();
+    return row?.n ?? 0;
+  }
+
+  /** Most recent indexed_at across all files, or null if nothing is indexed yet. */
+  getLastIndexedAt(): string | null {
+    const row = this.must()
+      .prepare<[], { last: string | null }>('SELECT MAX(indexed_at) AS last FROM files')
+      .get();
+    return row?.last ?? null;
+  }
+
   countPendingVectorChunks(): number {
     const row = this.must()
       .prepare<[], { n: number }>(
@@ -326,29 +348,50 @@ export class SqliteMetadataStore {
     tx(chunkIds);
   }
 
+  getFilePathById(fileId: string): string | null {
+    const row = this.must()
+      .prepare<[string], { path: string }>('SELECT path FROM files WHERE id = ?')
+      .get(fileId);
+    return row?.path ?? null;
+  }
+
   getChunkMeta(
     chunkIds: string[],
-  ): Map<string, { path: string; sourceId: string; metadata: string | null }> {
+  ): Map<
+    string,
+    { path: string; sourceId: string; metadata: string | null; mtime: string }
+  > {
     if (chunkIds.length === 0) return new Map();
     const db = this.must();
     const placeholders = chunkIds.map(() => '?').join(',');
     const rows = db
       .prepare<
         string[],
-        { chunkId: string; path: string; sourceId: string; metadata: string | null }
+        {
+          chunkId: string;
+          path: string;
+          sourceId: string;
+          metadata: string | null;
+          mtime: string;
+        }
       >(
-        `SELECT c.id AS chunkId, f.path AS path, f.source_id AS sourceId, c.metadata AS metadata
+        `SELECT c.id AS chunkId, f.path AS path, f.source_id AS sourceId,
+                c.metadata AS metadata, f.mtime AS mtime
          FROM chunks c
          JOIN files f ON f.id = c.file_id
          WHERE c.id IN (${placeholders})`,
       )
       .all(...chunkIds);
-    const out = new Map<string, { path: string; sourceId: string; metadata: string | null }>();
+    const out = new Map<
+      string,
+      { path: string; sourceId: string; metadata: string | null; mtime: string }
+    >();
     for (const row of rows)
       out.set(row.chunkId, {
         path: row.path,
         sourceId: row.sourceId,
         metadata: row.metadata,
+        mtime: row.mtime,
       });
     return out;
   }
@@ -377,7 +420,7 @@ export class SqliteMetadataStore {
       .prepare<(string | number)[], SearchHitRow>(
         `SELECT c.id AS chunkId, c.file_id AS fileId, c.text, c.ordinal, c.byte_start AS byteStart,
                 c.byte_end AS byteEnd, c.metadata,
-                f.path, f.mime,
+                f.path, f.mime, f.mtime,
                 bm25(chunks_fts) AS bm25
          FROM chunks_fts
          JOIN chunks c ON c.id = chunks_fts.chunk_id
@@ -445,5 +488,77 @@ export class SqliteMetadataStore {
       .prepare<[], { n: number }>(`SELECT COUNT(*) AS n FROM jobs WHERE status = 'in_flight'`)
       .get();
     return { queued: queued?.n ?? 0, inFlight: inFlight?.n ?? 0 };
+  }
+
+  // ---------- conversations ----------
+
+  listConversations(): Array<{
+    id: string;
+    title: string;
+    createdAt: string;
+    updatedAt: string;
+  }> {
+    return this.must()
+      .prepare<
+        [],
+        { id: string; title: string; createdAt: string; updatedAt: string }
+      >(
+        `SELECT id, title, created_at AS createdAt, updated_at AS updatedAt
+         FROM conversations
+         ORDER BY updated_at DESC
+         LIMIT 200`,
+      )
+      .all();
+  }
+
+  getConversation(
+    id: string,
+  ): { id: string; title: string; turnsJson: string; createdAt: string; updatedAt: string } | null {
+    const row = this.must()
+      .prepare<
+        [string],
+        {
+          id: string;
+          title: string;
+          turnsJson: string;
+          createdAt: string;
+          updatedAt: string;
+        }
+      >(
+        `SELECT id, title, turns_json AS turnsJson, created_at AS createdAt, updated_at AS updatedAt
+         FROM conversations
+         WHERE id = ?`,
+      )
+      .get(id);
+    return row ?? null;
+  }
+
+  upsertConversation(row: {
+    id: string;
+    title: string;
+    turnsJson: string;
+  }): void {
+    const now = new Date().toISOString();
+    this.must()
+      .prepare(
+        `INSERT INTO conversations (id, title, turns_json, created_at, updated_at)
+         VALUES (@id, @title, @turnsJson, @now, @now)
+         ON CONFLICT(id) DO UPDATE SET
+           title      = excluded.title,
+           turns_json = excluded.turns_json,
+           updated_at = excluded.updated_at`,
+      )
+      .run({ ...row, now });
+  }
+
+  renameConversation(id: string, title: string): void {
+    const now = new Date().toISOString();
+    this.must()
+      .prepare(`UPDATE conversations SET title = ?, updated_at = ? WHERE id = ?`)
+      .run(title, now, id);
+  }
+
+  deleteConversation(id: string): void {
+    this.must().prepare('DELETE FROM conversations WHERE id = ?').run(id);
   }
 }

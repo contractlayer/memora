@@ -4,7 +4,7 @@ import { getAppContext } from '@main/app-context';
 
 export function registerEmbedderHandlers(ipcMain: IpcMain): void {
   ipcMain.handle(IPC.Embedder.Status, async (): Promise<EmbedderStatus> => {
-    const { embedder, vectors, store } = getAppContext();
+    const { embedder, vectors, store, embedWorker } = getAppContext();
     let totalVectors = 0;
     try {
       totalVectors = await vectors.count();
@@ -16,6 +16,7 @@ export function registerEmbedderHandlers(ipcMain: IpcMain): void {
       ready: embedder.isReady(),
       totalVectors,
       pendingChunks: store.countPendingVectorChunks(),
+      currentFile: embedWorker.getCurrentFile(),
     };
   });
 }

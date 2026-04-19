@@ -25,7 +25,14 @@ import { registerSourceHandlers } from './ipc/sources';
 import { registerIndexHandlers } from './ipc/index-status';
 import { registerEmbedderHandlers } from './ipc/embedder';
 import { registerSettingsHandlers } from './ipc/settings';
-import { initAppContext, shutdownAppContext } from './app-context';
+import { registerOnboardingHandlers } from './ipc/onboarding';
+import { registerLocaleHandlers } from './ipc/locale';
+import { registerConversationHandlers } from './ipc/conversations';
+import { initAppContext, getAppContext, shutdownAppContext } from './app-context';
+import { buildApplicationMenu } from './menu';
+import { Menu } from 'electron';
+import type { Locale } from '@shared/locales';
+import { SUPPORTED_LOCALES } from '@shared/locales';
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -65,17 +72,39 @@ app.whenReady().then(async () => {
   registerIndexHandlers(ipcMain);
   registerEmbedderHandlers(ipcMain);
   registerSettingsHandlers(ipcMain);
+  registerOnboardingHandlers(ipcMain);
+  registerConversationHandlers(ipcMain);
+
+  const applyMenuForLocale = (locale: string) => {
+    const safeLocale = isSupportedLocale(locale) ? locale : 'en';
+    const menu = buildApplicationMenu(safeLocale, mainWindow, (next) => {
+      // User picked a language from the menu — persist + broadcast to renderer.
+      void getAppContext().settings.setLocale(next);
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send(IPC.Locale.Changed, next);
+      }
+      applyMenuForLocale(next);
+    });
+    Menu.setApplicationMenu(menu);
+  };
+
+  registerLocaleHandlers(ipcMain, () => mainWindow, applyMenuForLocale);
 
   ipcMain.handle(IPC.App.OpenCitation, async (_e, path: string) => {
     await shell.openPath(path);
   });
 
   createWindow();
+  applyMenuForLocale(getAppContext().settings.getLocale());
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
 });
+
+function isSupportedLocale(l: string): l is Locale {
+  return (SUPPORTED_LOCALES as readonly string[]).includes(l);
+}
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();

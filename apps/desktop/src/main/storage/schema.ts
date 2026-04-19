@@ -76,4 +76,16 @@ CREATE TABLE IF NOT EXISTS jobs (
 );
 
 CREATE INDEX IF NOT EXISTS jobs_status_idx ON jobs(status, priority DESC, created_at);
+
+-- Chat history. turns_json holds the full turns array (with citations +
+-- location metadata) as JSON — avoids per-citation schema churn.
+CREATE TABLE IF NOT EXISTS conversations (
+  id          TEXT PRIMARY KEY,
+  title       TEXT NOT NULL,
+  turns_json  TEXT NOT NULL DEFAULT '[]',
+  created_at  TEXT NOT NULL,
+  updated_at  TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS conversations_updated_idx ON conversations(updated_at DESC);
 `;

@@ -1,38 +1,35 @@
-// Inline SVG logo — kept in sync with resources/logo.svg (which feeds
-// scripts/build-icons.mjs). Duplication avoids renderer ↔ monorepo-root path
-// headaches in Electron's file:// renderer context.
+// Clean geometric logo — rounded square with an "M" inside. Uses the CSS
+// accent variable so it follows light/dark + any future theme changes.
+// The OS icon at resources/logo.svg keeps its own color-saturated design
+// for readability at small dock sizes.
 
-export function Logo({ size = 32 }: { size?: number }) {
+export function Logo({ size = 28 }: { size?: number }) {
   return (
     <svg
       width={size}
       height={size}
-      viewBox="0 0 1024 1024"
+      viewBox="0 0 32 32"
       xmlns="http://www.w3.org/2000/svg"
       role="img"
-      aria-label="Memora logo"
+      aria-label="Memora"
     >
-      <defs>
-        <linearGradient id="memora-bg" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#4f46e5" />
-          <stop offset="60%" stopColor="#6366f1" />
-          <stop offset="100%" stopColor="#8b5cf6" />
-        </linearGradient>
-      </defs>
-      <rect x="0" y="0" width="1024" height="1024" rx="224" ry="224" fill="url(#memora-bg)" />
-      <g
-        stroke="white"
+      <rect
+        x="0"
+        y="0"
+        width="32"
+        height="32"
+        rx="7"
+        ry="7"
+        fill="var(--accent, #6366f1)"
+      />
+      <path
+        d="M 8 23 L 8 9 L 13 9 L 16 15 L 19 9 L 24 9 L 24 23"
+        fill="none"
+        stroke="var(--accent-fg, #ffffff)"
+        strokeWidth="2.2"
         strokeLinecap="round"
         strokeLinejoin="round"
-        fill="none"
-        strokeWidth="82"
-      >
-        <path d="M 260 780 L 260 280" />
-        <path d="M 260 280 L 512 620" />
-        <path d="M 512 620 L 764 280" />
-        <path d="M 764 280 L 764 780" />
-      </g>
-      <circle cx="512" cy="700" r="38" fill="white" opacity="0.95" />
+      />
     </svg>
   );
 }

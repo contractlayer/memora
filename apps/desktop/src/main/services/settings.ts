@@ -10,24 +10,33 @@ export type LlmSettings = {
   baseUrl?: string;
 };
 
+export type AppSettings = LlmSettings & {
+  /** True once the user has dismissed or completed the first-run onboarding. */
+  onboarded?: boolean;
+  /** BCP-47 locale code — 'en', 'vi', 'zh-CN', ... */
+  locale?: string;
+};
+
 // API keys are persisted separately via Electron safeStorage (backed by
 // macOS Keychain / Windows DPAPI / libsecret). Never serialized in plaintext.
-const DEFAULT_SETTINGS: LlmSettings = {
+const DEFAULT_SETTINGS: AppSettings = {
   provider: 'none',
   model: '',
+  onboarded: false,
+  locale: 'en',
 };
 
 const SETTINGS_FILENAME = 'settings.json';
 const API_KEY_FILENAME_PREFIX = 'apikey.';
 
 export class SettingsStore {
-  private cache: LlmSettings = DEFAULT_SETTINGS;
+  private cache: AppSettings = DEFAULT_SETTINGS;
 
   async init(): Promise<void> {
     await this.migrateFromLegacyUserData();
     try {
       const raw = await readFile(this.settingsPath(), 'utf-8');
-      const parsed = JSON.parse(raw) as Partial<LlmSettings>;
+      const parsed = JSON.parse(raw) as Partial<AppSettings>;
       this.cache = { ...DEFAULT_SETTINGS, ...parsed };
     } catch (err) {
       if ((err as NodeJS.ErrnoException).code === 'ENOENT') return;
@@ -74,11 +83,36 @@ export class SettingsStore {
   }
 
   getLlm(): LlmSettings {
-    return { ...this.cache };
+    const { provider, model, baseUrl } = this.cache;
+    return { provider, model, baseUrl };
   }
 
   async setLlm(next: LlmSettings): Promise<void> {
-    this.cache = { ...next };
+    this.cache = { ...this.cache, ...next };
+    await this.persist();
+  }
+
+  isOnboarded(): boolean {
+    return this.cache.onboarded === true;
+  }
+
+  async markOnboarded(): Promise<void> {
+    if (this.cache.onboarded) return;
+    this.cache = { ...this.cache, onboarded: true };
+    await this.persist();
+  }
+
+  getLocale(): string {
+    return this.cache.locale ?? 'en';
+  }
+
+  async setLocale(locale: string): Promise<void> {
+    if (this.cache.locale === locale) return;
+    this.cache = { ...this.cache, locale };
+    await this.persist();
+  }
+
+  private async persist(): Promise<void> {
     await writeFile(this.settingsPath(), JSON.stringify(this.cache, null, 2), 'utf-8');
   }
 

@@ -10,12 +10,14 @@ import { LanceVectorStore } from './services/vector-store';
 import { EmbedWorker } from './services/embed-worker';
 import { SettingsStore } from './services/settings';
 import { LlmRouter } from './services/llm-router';
+import { TransformersReranker, type Reranker } from './services/reranker';
 
 export type AppContext = {
   store: SqliteMetadataStore;
   indexer: IndexerService;
   parsers: ParserRegistry;
   embedder: Embedder;
+  reranker: Reranker;
   vectors: LanceVectorStore;
   embedWorker: EmbedWorker;
   settings: SettingsStore;
@@ -48,6 +50,13 @@ export async function initAppContext(): Promise<AppContext> {
   // Warm up the model in the background so first query is fast.
   void embedder.load().catch((err: unknown) => {
     console.error('[init] embedder warm-up failed:', err);
+  });
+
+  // Warm up the reranker alongside the embedder so the first query doesn't
+  // pay the model-load cost. Failure is tolerated — query falls back to RRF.
+  const reranker = new TransformersReranker();
+  void reranker.load().catch((err: unknown) => {
+    console.error('[init] reranker warm-up failed:', err);
   });
 
   console.log('[init] opening LanceDB');
@@ -100,6 +109,7 @@ export async function initAppContext(): Promise<AppContext> {
     indexer,
     parsers,
     embedder,
+    reranker,
     vectors,
     embedWorker,
     settings,

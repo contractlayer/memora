@@ -1,12 +1,15 @@
 export const IPC = {
   Query: {
     Ask: 'query:ask',
-    Stream: 'query:stream',
+    StreamStart: 'query:stream-start',
+    StreamEvent: 'query:stream-event',
+    StreamAbort: 'query:stream-abort',
   },
   Sources: {
     List: 'sources:list',
     AddFolder: 'sources:add-folder',
     AddFiles: 'sources:add-files',
+    AddByPath: 'sources:add-by-path',
     Remove: 'sources:remove',
   },
   Index: {
@@ -26,8 +29,52 @@ export const IPC = {
   },
   App: {
     OpenCitation: 'app:open-citation',
+    OpenSettings: 'app:open-settings',
+  },
+  Onboarding: {
+    Status: 'onboarding:status',
+    ScanCandidates: 'onboarding:scan-candidates',
+    MarkDone: 'onboarding:mark-done',
+  },
+  Locale: {
+    Get: 'locale:get',
+    Set: 'locale:set',
+    Changed: 'locale:changed',
+  },
+  Conversations: {
+    List: 'conversations:list',
+    Get: 'conversations:get',
+    Save: 'conversations:save',
+    Rename: 'conversations:rename',
+    Delete: 'conversations:delete',
   },
 } as const;
+
+export type ConversationSummary = {
+  id: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ConversationFull = ConversationSummary & {
+  turns: Array<
+    | { role: 'user'; content: string }
+    | { role: 'assistant'; content: string; citations: Citation[] }
+  >;
+};
+
+export type OnboardingCandidate = {
+  path: string;
+  label: string;
+  exists: boolean;
+  fileCount: number;
+  totalBytes: number;
+  truncated: boolean;
+  recommended: boolean;
+};
+
+export type OnboardingStatus = { onboarded: boolean };
 
 export type ChatTurn = {
   role: 'user' | 'assistant';
@@ -70,6 +117,21 @@ export type QueryAskResponse = {
   citations: Citation[];
 };
 
+/**
+ * Events emitted while streaming a query answer. Order:
+ *   1. 'citations' — exactly once, carries the full citation list up front.
+ *   2. 'text'      — zero or more, each a delta (not cumulative).
+ *   3. 'done'      — exactly once, closes the stream.
+ *   'error'        — instead of 'done' when the stream fails.
+ */
+export type QueryStreamEvent =
+  | { type: 'citations'; citations: Citation[] }
+  | { type: 'text'; delta: string }
+  | { type: 'done'; truncated: boolean }
+  | { type: 'error'; error: string };
+
+export type QueryStreamStartRequest = QueryAskRequest & { streamId: string };
+
 export type SourceKind = 'folder' | 'file';
 
 export type SourceFolder = {
@@ -86,6 +148,17 @@ export type IndexStatus = {
   inFlight: number;
   completedToday: number;
   totalChunks: number;
+  /** Total file rows tracked by the indexer, across every source. */
+  totalFiles: number;
+  /** Subset of totalFiles that have been fully indexed. */
+  indexedFiles: number;
+  /** Count of source folders/files registered. Duplicates sources.list length
+   *  but avoids a second round-trip in status polling. */
+  totalSources: number;
+  /** ISO timestamp of the most recent indexed file, or null if none yet. */
+  lastIndexedAt: string | null;
+  /** Path of the file currently being parsed, if any. */
+  currentFile: string | null;
 };
 
 export type EmbedderStatus = {
@@ -93,6 +166,8 @@ export type EmbedderStatus = {
   ready: boolean;
   totalVectors: number;
   pendingChunks: number;
+  /** Path of the file whose chunks are currently being embedded, if any. */
+  currentFile: string | null;
 };
 
 export type LlmProvider = 'none' | 'ollama' | 'openai' | 'anthropic' | 'gemini';

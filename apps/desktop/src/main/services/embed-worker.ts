@@ -2,7 +2,6 @@ import { EventEmitter } from 'node:events';
 import type { SqliteMetadataStore } from '@main/storage/metadata';
 import type { Embedder } from '@main/services/embedder';
 import type { LanceVectorStore } from '@main/services/vector-store';
-import { awaitCpuBelow } from '@main/services/cpu-throttle';
 
 export type EmbedWorkerEvents = {
   batchEmbedded: { count: number; remaining: number };
@@ -22,6 +21,7 @@ const IDLE_SLEEP_MS = 1000;
 export class EmbedWorker extends EventEmitter {
   private running = false;
   private loopPromise: Promise<void> | null = null;
+  private currentFile: string | null = null;
 
   constructor(
     private readonly store: SqliteMetadataStore,
@@ -29,6 +29,10 @@ export class EmbedWorker extends EventEmitter {
     private readonly vectors: LanceVectorStore,
   ) {
     super();
+  }
+
+  getCurrentFile(): string | null {
+    return this.currentFile;
   }
 
   start(): void {
@@ -52,12 +56,12 @@ export class EmbedWorker extends EventEmitter {
       }
       const pending = this.store.nextChunksToEmbed(BATCH_SIZE);
       if (pending.length === 0) {
+        if (this.currentFile !== null) this.currentFile = null;
         await sleep(IDLE_SLEEP_MS);
         continue;
       }
-      // Back off when the system is under load. Embedding is CPU-intensive
-      // (ONNX on CPU) so this actually matters for user UX.
-      await awaitCpuBelow(0.7, 'embed');
+      // Resolve chunk's file path for status display. Cheap indexed lookup.
+      this.currentFile = this.store.getFilePathById(pending[0]!.fileId);
       console.log(
         `[embedWorker] embedding ${pending[0]!.id} (${pending[0]!.text.length} chars)`,
       );

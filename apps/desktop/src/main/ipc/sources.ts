@@ -61,6 +61,13 @@ export function registerSourceHandlers(ipcMain: IpcMain): void {
     return registerSource(result.filePaths[0]!);
   });
 
+  ipcMain.handle(
+    IPC.Sources.AddByPath,
+    async (_e, path: string): Promise<SourceFolder> => {
+      return registerSource(path);
+    },
+  );
+
   ipcMain.handle(IPC.Sources.AddFiles, async (): Promise<SourceFolder[]> => {
     const result = await dialog.showOpenDialog({
       properties: ['openFile', 'multiSelections'],
