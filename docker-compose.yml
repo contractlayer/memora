@@ -1,0 +1,55 @@
+services:
+  # Dev-time LLM server. The Electron app can detect and connect to this
+  # during development. In production, the app ships node-llama-cpp and
+  # only connects to Ollama if the user has it installed natively.
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ai-search-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # One-shot container that pulls default models after Ollama starts.
+  # Runs once and exits.
+  ollama-bootstrap:
+    image: ollama/ollama:latest
+    container_name: ai-search-ollama-bootstrap
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+    entrypoint: >
+      sh -c "
+        ollama pull qwen2.5:7b-instruct-q4_K_M &&
+        ollama pull bge-m3 &&
+        echo 'Models ready'
+      "
+    restart: "no"
+
+  # Python service for running RAGAS evaluation against indexed data.
+  # Exposed on :7860 for the Electron app to POST eval requests during dev.
+  ragas-eval:
+    build:
+      context: ./services/ragas-eval
+      dockerfile: Dockerfile
+    container_name: ai-search-ragas-eval
+    ports:
+      - "7860:7860"
+    volumes:
+      - ./services/ragas-eval:/app
+      - ragas-cache:/root/.cache
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+
+volumes:
+  ollama-data:
+  ragas-cache:

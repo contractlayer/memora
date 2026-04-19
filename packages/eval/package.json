@@ -1,0 +1,14 @@
+{
+  "name": "@ai-search/eval",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Golden set runner + RAGAS metrics client",
+  "scripts": {
+    "typecheck": "tsc -b",
+    "eval": "node --import tsx/esm src/run.ts"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.2"
+  }
+}

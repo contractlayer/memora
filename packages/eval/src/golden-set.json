@@ -1,0 +1,5 @@
+{
+  "$schema": "./golden-set.schema.json",
+  "version": 1,
+  "queries": []
+}
