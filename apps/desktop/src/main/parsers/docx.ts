@@ -1,3 +1,4 @@
+import mammoth from 'mammoth';
 import type { Parser, ParsedDocument } from './registry';
 
 export class DocxParser implements Parser {
@@ -6,8 +7,13 @@ export class DocxParser implements Parser {
   ];
   readonly extensions = ['docx'];
 
-  async parse(_filePath: string): Promise<ParsedDocument> {
-    // TODO(Phase 1, Week 3): mammoth.extractRawText with table handling.
-    return { text: '', metadata: {} };
+  async parse(filePath: string): Promise<ParsedDocument> {
+    const result = await mammoth.extractRawText({ path: filePath });
+    return {
+      text: result.value,
+      metadata: {
+        warnings: result.messages.map((m) => m.message),
+      },
+    };
   }
 }

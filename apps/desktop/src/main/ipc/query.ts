@@ -1,14 +1,15 @@
 import type { IpcMain } from 'electron';
 import { IPC, type QueryAskRequest, type QueryAskResponse } from '@shared/ipc';
+import { getAppContext } from '@main/app-context';
+import { QueryOrchestrator } from '@main/services/query';
 
 export function registerQueryHandlers(ipcMain: IpcMain): void {
   ipcMain.handle(
     IPC.Query.Ask,
     async (_e, req: QueryAskRequest): Promise<QueryAskResponse> => {
-      return {
-        answer: `[stub] Received question: "${req.question}". Query engine lands in Phase 2.`,
-        citations: [],
-      };
+      const { store, embedder, vectors, llmRouter } = getAppContext();
+      const orchestrator = new QueryOrchestrator(store, embedder, vectors, llmRouter);
+      return orchestrator.ask(req);
     },
   );
 }

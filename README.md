@@ -1,8 +1,10 @@
-# AI Search
+# Memora
 
-Desktop app: "Spotlight + ChatGPT" for your local files. Index PDFs, DOCX, text,
-markdown, and source code; ask natural-language questions; get answers with
-citations that open the original file.
+**Ask anything about your data.**
+
+Desktop app that indexes your local files (PDF, DOCX, text, markdown, code)
+and lets you ask natural-language questions. Answers come back with citations
+that open the original file.
 
 Built for developers and tech workers. Privacy-first: local-default, cloud opt-in.
 

@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="Memora logo">
+  <defs>
+    <linearGradient id="memora-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4f46e5"/>
+      <stop offset="60%" stop-color="#6366f1"/>
+      <stop offset="100%" stop-color="#8b5cf6"/>
+    </linearGradient>
+    <filter id="memora-shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feGaussianBlur stdDeviation="8" in="SourceAlpha"/>
+      <feOffset dy="4"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.35"/></feComponentTransfer>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- Rounded square background -->
+  <rect x="0" y="0" width="1024" height="1024" rx="224" ry="224" fill="url(#memora-bg)"/>
+
+  <!-- Memory "chunks" grid (subtle) -->
+  <g opacity="0.12" fill="white">
+    <circle cx="180" cy="180" r="22"/>
+    <circle cx="260" cy="180" r="22"/>
+    <circle cx="340" cy="180" r="22"/>
+    <circle cx="844" cy="844" r="22"/>
+    <circle cx="764" cy="844" r="22"/>
+    <circle cx="684" cy="844" r="22"/>
+    <circle cx="844" cy="764" r="22"/>
+    <circle cx="180" cy="260" r="22"/>
+  </g>
+
+  <!-- Stylized "M" built from four strokes, suggests two documents stacked -->
+  <g filter="url(#memora-shadow)" stroke="white" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke-width="82">
+    <!-- Left stem -->
+    <path d="M 260 780 L 260 280"/>
+    <!-- Left diagonal down to center -->
+    <path d="M 260 280 L 512 620"/>
+    <!-- Right diagonal up -->
+    <path d="M 512 620 L 764 280"/>
+    <!-- Right stem -->
+    <path d="M 764 280 L 764 780"/>
+  </g>
+
+  <!-- Small search/spark dot in the M's valley, hints at the 'ask anything' angle -->
+  <circle cx="512" cy="700" r="38" fill="white" opacity="0.95"/>
+</svg>

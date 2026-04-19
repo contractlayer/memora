@@ -1,0 +1,41 @@
+appId: com.memora.app
+productName: Memora
+copyright: Copyright © 2026 Memora
+directories:
+  output: release/${version}
+  buildResources: ../../resources/icons
+
+files:
+  - dist/**
+  - "!node_modules/**/*.map"
+
+asar: true
+# LanceDB + better-sqlite3 + onnxruntime-node ship prebuilt native .node files
+# that must NOT be packed into asar (electron can't dlopen from asar).
+asarUnpack:
+  - node_modules/@lancedb/**
+  - node_modules/better-sqlite3/**
+  - node_modules/onnxruntime-node/**
+  - node_modules/@huggingface/**
+  - node_modules/sharp/**
+
+mac:
+  category: public.app-category.productivity
+  icon: ../../resources/icons/icon.icns
+  target:
+    - target: dmg
+      arch: [arm64, x64]
+  hardenedRuntime: true
+  gatekeeperAssess: false
+
+win:
+  icon: ../../resources/icons/icon.ico
+  target:
+    - target: nsis
+      arch: [x64]
+
+linux:
+  icon: ../../resources/icons/icon.png
+  target:
+    - AppImage
+  category: Utility
