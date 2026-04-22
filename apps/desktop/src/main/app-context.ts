@@ -47,17 +47,19 @@ export async function initAppContext(): Promise<AppContext> {
   console.log('[init] parsers registered');
 
   const embedder = new TransformersEmbedder();
-  // Warm up the model in the background so first query is fast.
-  void embedder.load().catch((err: unknown) => {
-    console.error('[init] embedder warm-up failed:', err);
-  });
-
-  // Warm up the reranker alongside the embedder so the first query doesn't
-  // pay the model-load cost. Failure is tolerated — query falls back to RRF.
   const reranker = new TransformersReranker();
-  void reranker.load().catch((err: unknown) => {
-    console.error('[init] reranker warm-up failed:', err);
-  });
+  // Load in parallel at startup — blocking here is fine because the UI
+  // shows a splash until initAppContext resolves, and loading in the
+  // background meant early queries silently fell back to BM25-only /
+  // RRF-only paths. Failures are logged but don't abort boot.
+  await Promise.all([
+    embedder.load().catch((err: unknown) => {
+      console.error('[init] embedder load failed:', err);
+    }),
+    reranker.load().catch((err: unknown) => {
+      console.error('[init] reranker load failed:', err);
+    }),
+  ]);
 
   console.log('[init] opening LanceDB');
   const vectors = new LanceVectorStore(join(dataDir, 'lancedb'), DEFAULT_EMBEDDING_DIMS);
@@ -134,6 +136,9 @@ export async function shutdownAppContext(): Promise<void> {
   if (!context) return;
   await context.indexer.stop();
   await context.embedWorker.stop();
+  for (const connector of context.connectors.values()) {
+    await connector.disconnect();
+  }
   context.store.close();
   context = null;
 }

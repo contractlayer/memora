@@ -77,6 +77,13 @@ export class LocalFileConnector implements DataSource {
     }
   }
 
+  async disconnect(): Promise<void> {
+    if (this.watcher) {
+      await this.watcher.close();
+      this.watcher = null;
+    }
+  }
+
   async *listDocuments(): AsyncIterable<DocumentRecord> {
     for (const root of this.roots) {
       const rootStat = await stat(root);

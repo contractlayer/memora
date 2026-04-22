@@ -19,6 +19,7 @@ export type ChangeEvent =
 export interface DataSource {
   readonly id: string;
   connect(): Promise<void>;
+  disconnect(): Promise<void>;
   listDocuments(): AsyncIterable<DocumentRecord>;
   getDocument(id: string): Promise<DocumentRecord | null>;
   watchChanges(onEvent: (e: ChangeEvent) => void): () => void;

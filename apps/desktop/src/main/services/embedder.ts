@@ -29,6 +29,11 @@ type FeatureExtractionPipeline = {
 // E5 model context limit. Passing longer inputs without truncation can crash
 // onnxruntime on some builds (SIGTRAP). We explicitly truncate.
 const MAX_INPUT_TOKENS = 512;
+// Heuristic: E5's SentencePiece tokenizer averages ~4 chars/token on mixed
+// English + code. Chunks above this length almost certainly get truncated at
+// 512 tokens, which silently drops context. Warn so we can tighten the
+// chunker rather than shipping degraded embeddings.
+const TRUNCATION_WARN_CHARS = MAX_INPUT_TOKENS * 4;
 
 export interface Embedder {
   readonly modelName: string;
@@ -85,6 +90,13 @@ export class TransformersEmbedder implements Embedder {
     if (texts.length === 0) return [];
     await this.load();
     const extractor = this.extractor!;
+    for (const t of texts) {
+      if (t.length > TRUNCATION_WARN_CHARS) {
+        console.warn(
+          `[embedder] passage length ${t.length} chars likely truncated at ${MAX_INPUT_TOKENS} tokens`,
+        );
+      }
+    }
     const prefixed = texts.map((t) => PASSAGE_PREFIX + t);
     const output = await extractor(prefixed, {
       pooling: 'mean',

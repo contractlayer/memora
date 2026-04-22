@@ -69,7 +69,13 @@ export class LanceVectorStore {
 
   async deleteByFileId(fileId: string): Promise<void> {
     if (!this.table) return;
-    await this.table.delete(`file_id = '${fileId.replace(/'/g, "''")}'`);
+    // LanceDB's delete only accepts SQL predicate strings — no parameter
+    // binding. fileId always originates from crypto.randomUUID(), so a
+    // strict format check is safer than string escaping.
+    if (!/^[0-9a-f-]{36}$/i.test(fileId)) {
+      throw new Error(`Invalid fileId for vector delete: ${fileId}`);
+    }
+    await this.table.delete(`file_id = '${fileId}'`);
   }
 
   async searchVector(query: Float32Array, topK: number): Promise<VectorSearchHit[]> {

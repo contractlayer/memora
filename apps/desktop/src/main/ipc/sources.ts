@@ -85,6 +85,8 @@ export function registerSourceHandlers(ipcMain: IpcMain): void {
     const ctx = getAppContext();
     // Capture file ids BEFORE the SQLite cascade wipes them.
     const files = ctx.store.listFilesForSource(id);
+    const connector = ctx.connectors.get(id);
+    if (connector) await connector.disconnect();
     ctx.connectors.delete(id);
     ctx.store.deleteSource(id);
     // Purge vectors outside the SQLite transaction so LanceDB failures

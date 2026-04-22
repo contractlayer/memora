@@ -102,7 +102,7 @@ export class QueryOrchestrator {
     const client = await this.llmRouter.resolve();
     if (!client) {
       // No LLM → fall back to top snippet (same UX as non-streaming).
-      yield { type: 'text', delta: citations[0]!.snippet };
+      yield { type: 'text', delta: topSnippet(citations) };
       yield { type: 'done', truncated: false };
       return;
     }
@@ -132,7 +132,7 @@ export class QueryOrchestrator {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error('LLM stream failed, falling back:', err);
-      yield { type: 'text', delta: `[LLM error: ${msg}] ${citations[0]!.snippet}` };
+      yield { type: 'text', delta: `[LLM error: ${msg}] ${topSnippet(citations)}` };
       yield { type: 'done', truncated: false };
     }
   }
@@ -241,7 +241,7 @@ export class QueryOrchestrator {
     if (!client) {
       // No LLM configured — fall back to showing the top snippet as the
       // "answer". User still sees citations so they can dig in.
-      return citations[0]!.snippet;
+      return topSnippet(citations);
     }
     try {
       const { system, user } = buildSynthesisPrompt(question, ranked);
@@ -255,7 +255,7 @@ export class QueryOrchestrator {
       );
     } catch (err) {
       console.error('LLM synthesis failed, falling back to top snippet:', err);
-      return `[LLM error: ${(err as Error).message}] ${citations[0]!.snippet}`;
+      return `[LLM error: ${(err as Error).message}] ${topSnippet(citations)}`;
     }
   }
 
@@ -363,6 +363,10 @@ function buildSynthesisPrompt(
     'Match the language of the user question.';
   const user = `Question: ${question}\n\nExcerpts:\n${context}`;
   return { system, user };
+}
+
+function topSnippet(citations: Citation[]): string {
+  return citations[0]?.snippet ?? 'No relevant excerpt found.';
 }
 
 function parseLocation(metadataJson: string | null): ChunkLocation | undefined {

@@ -21,6 +21,7 @@ export type IndexerEvents = {
 
 export class IndexerService extends EventEmitter {
   private running = false;
+  private loopPromise: Promise<void> | null = null;
   private completedToday = 0;
   private currentFile: string | null = null;
   // Per-source connectors, keyed by sourceId, so we can read files through them.
@@ -75,11 +76,13 @@ export class IndexerService extends EventEmitter {
   async start(): Promise<void> {
     if (this.running) return;
     this.running = true;
-    void this.loop();
+    this.loopPromise = this.loop();
   }
 
   async stop(): Promise<void> {
     this.running = false;
+    await this.loopPromise;
+    this.loopPromise = null;
   }
 
   private async loop(): Promise<void> {
@@ -250,7 +253,7 @@ export class IndexerService extends EventEmitter {
   }
 
   private async processDeleteJob(path: string, sourceId: string | null): Promise<void> {
-    if (!sourceId) return;
+    if (!sourceId) throw new Error(`Missing source for delete job: ${path}`);
     const existing = this.store.getFileByPath(sourceId, path);
     if (!existing) return;
     await this.vectors.deleteByFileId(existing.id);

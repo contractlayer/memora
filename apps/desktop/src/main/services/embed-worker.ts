@@ -13,6 +13,7 @@ export type EmbedWorkerEvents = {
 // model/runtime or isolate embedding in a worker, stay at 1. Slower but stable.
 const BATCH_SIZE = 1;
 const IDLE_SLEEP_MS = 1000;
+const ERROR_BACKOFF_MS = 5000;
 
 // Background worker that pulls chunks missing vectors from SQLite,
 // embeds them, upserts to LanceDB, then marks them vectorized. Runs
@@ -86,7 +87,7 @@ export class EmbedWorker extends EventEmitter {
         const msg = err instanceof Error ? err.message : String(err);
         console.error('[embedWorker] batch failed:', err);
         this.emit('error', { error: msg });
-        await sleep(5000);
+        await sleep(ERROR_BACKOFF_MS);
       }
     }
   }
