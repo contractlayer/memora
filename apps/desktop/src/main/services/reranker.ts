@@ -5,9 +5,17 @@ import { join } from 'node:path';
 // comparing embeddings. Much stronger than bi-encoder similarity for the final
 // top-N slot, at the cost of running the model per-candidate.
 //
-// MiniLM-L-6 is a well-known MS-MARCO cross-encoder, ~90MB full / ~30MB q8.
-// Fast enough for ~20 candidates per query (<300ms on M1).
-export const DEFAULT_RERANKER_MODEL = 'Xenova/ms-marco-MiniLM-L-6-v2';
+// bge-reranker-v2-m3 is a multilingual XLM-RoBERTa reranker (100+ languages
+// including Vietnamese). Picked over MS-MARCO MiniLM because cross-lingual
+// queries (e.g., VN question against EN docs) were getting mis-ranked: the
+// multilingual embedder retrieved the right chunks, but an English-only
+// reranker then scored them low and dropped them from the final top-K.
+//
+// Cost: ~570MB q8 download on first launch (vs ~30MB for MiniLM), and
+// ~150ms per candidate on M1 (vs ~10ms). Rerank over 20 candidates is ~3s
+// on cold cache, ~1.5s hot. Acceptable for search; falls back to RRF-only
+// if the model fails to load.
+export const DEFAULT_RERANKER_MODEL = 'Xenova/bge-reranker-v2-m3';
 
 export type RerankCandidate = {
   chunkId: string;
