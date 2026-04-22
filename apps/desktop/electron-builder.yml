@@ -72,9 +72,11 @@ asarUnpack:
 mac:
   category: public.app-category.productivity
   icon: ../../resources/icons/icon.icns
+  # arm64 only — Apple Silicon launched 2020, Intel Macs are a
+  # vanishing minority. Re-add x64 if a paying user reports needing it.
   target:
     - target: dmg
-      arch: [arm64, x64]
+      arch: [arm64]
   # Hardened runtime requires every bundled native .node/.dylib to be
   # signed with the same Developer ID. Without a real cert we ad-hoc
   # sign, which then fails library-validation at launch and kills the

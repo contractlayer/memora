@@ -31,9 +31,9 @@ rm -rf dist/
 echo "==> electron-vite build (produces CJS bundle)"
 env -u ELECTRON_RUN_AS_NODE COPYFILE_DISABLE=1 npx electron-vite build
 
-echo "==> Build + publish macOS (arm64 + x64)"
+echo "==> Build + publish macOS (arm64 only)"
 env -u ELECTRON_RUN_AS_NODE COPYFILE_DISABLE=1 \
-  npx electron-builder --mac --arm64 --x64 \
+  npx electron-builder --mac --arm64 \
   -c electron-builder.yml \
   -c.directories.output="$HOME/memora-release/\${version}" \
   --publish always

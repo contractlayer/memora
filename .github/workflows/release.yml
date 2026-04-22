@@ -22,9 +22,8 @@ jobs:
         include:
           - name: mac
             os: macos-latest
-            # macos-latest is arm64; we also build x64 DMG cross-arch
-            # using prebuilt electron x64 binaries.
-            build_args: --mac --arm64 --x64
+            # Apple Silicon only — see electron-builder.yml.
+            build_args: --mac --arm64
           - name: windows
             os: windows-latest
             build_args: --win --x64
