@@ -17,11 +17,11 @@ publish:
 # electron-builder can't auto-detect it from here.
 electronVersion: 33.4.11
 directories:
-  # Output to APFS: the project lives on an ExFAT volume (/Volumes/T9)
-  # which fabricates AppleDouble `._*` companions for every write,
-  # breaking bundle integrity and macOS Launch Services. Writing the
-  # release artifacts to the APFS home directory avoids all of that.
-  output: /Users/thedinhnguyen/memora-release/${version}
+  # Relative path → works in CI runners out of the box.
+  # Local builds on ExFAT need APFS output to avoid AppleDouble `._*`
+  # companions poisoning the bundle — release.sh overrides this via
+  # `-c.directories.output=$HOME/memora-release/<version>`.
+  output: release/${version}
   buildResources: ../../resources/icons
 
 files:

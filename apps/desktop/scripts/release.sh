@@ -34,12 +34,16 @@ env -u ELECTRON_RUN_AS_NODE COPYFILE_DISABLE=1 npx electron-vite build
 echo "==> Build + publish macOS (arm64 + x64)"
 env -u ELECTRON_RUN_AS_NODE COPYFILE_DISABLE=1 \
   npx electron-builder --mac --arm64 --x64 \
-  -c electron-builder.yml --publish always
+  -c electron-builder.yml \
+  -c.directories.output="$HOME/memora-release/\${version}" \
+  --publish always
 
 echo "==> Build + publish Windows (x64 only — no --arm64!)"
 env -u ELECTRON_RUN_AS_NODE COPYFILE_DISABLE=1 \
   npx electron-builder --win --x64 \
-  -c electron-builder.yml --publish always
+  -c electron-builder.yml \
+  -c.directories.output="$HOME/memora-release/\${version}" \
+  --publish always
 
 echo
 echo "==> Done. Review + publish the draft release at:"
