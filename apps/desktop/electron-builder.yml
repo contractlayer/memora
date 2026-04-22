@@ -74,8 +74,12 @@ mac:
   icon: ../../resources/icons/icon.icns
   # arm64 only — Apple Silicon launched 2020, Intel Macs are a
   # vanishing minority. Re-add x64 if a paying user reports needing it.
+  # dmg = first-install; zip = auto-update feed (electron-updater unzips
+  # in place). Shipping dmg alone triggers ERR_UPDATER_ZIP_FILE_NOT_FOUND.
   target:
     - target: dmg
+      arch: [arm64]
+    - target: zip
       arch: [arm64]
   # Hardened runtime requires every bundled native .node/.dylib to be
   # signed with the same Developer ID. Without a real cert we ad-hoc
