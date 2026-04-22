@@ -22,4 +22,5 @@ export interface DataSource {
   listDocuments(): AsyncIterable<DocumentRecord>;
   getDocument(id: string): Promise<DocumentRecord | null>;
   watchChanges(onEvent: (e: ChangeEvent) => void): () => void;
+  statFile(path: string): Promise<{ size: number; mtime: Date }>;
 }

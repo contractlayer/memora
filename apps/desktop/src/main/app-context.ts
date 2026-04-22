@@ -96,6 +96,10 @@ export async function initAppContext(): Promise<AppContext> {
     });
     indexer.registerConnector(connector);
     connectors.set(row.id, connector);
+    // Catch files added/modified while the app was closed — the watcher's
+    // ignoreInitial means it won't emit them on start. Unchanged files are
+    // filtered by sha256 in processParseJob, so this is cheap to re-run.
+    void indexer.enqueueScan(connector);
   }
 
   await indexer.start();

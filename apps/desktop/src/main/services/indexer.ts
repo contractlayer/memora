@@ -126,11 +126,36 @@ export class IndexerService extends EventEmitter {
     const mime = mimeFromPath(path);
     if (!mime) throw new Error(`Unsupported file type: ${path}`);
 
+    const existing = this.store.getFileByPath(sourceId, path);
+
+    // Fast path: if we've indexed this file before and the filesystem stat
+    // matches exactly, skip without reading or hashing. This avoids full disk
+    // reads during startup rescans on large sources.
+    if (existing?.indexedAt) {
+      const info = await connector.statFile(path);
+      if (
+        existing.size === info.size &&
+        existing.mtime === info.mtime.toISOString()
+      ) {
+        return;
+      }
+    }
+
     const { sha256, size, mtime } = await connector.readFile(path);
 
-    const existing = this.store.getFileByPath(sourceId, path);
     if (existing && existing.sha256 === sha256 && existing.indexedAt) {
-      // Unchanged. Skip re-parse.
+      // Content unchanged (touch / copy-with-new-mtime). Refresh the stored
+      // mtime+size so subsequent startup scans hit the fast path above.
+      this.store.upsertFile({
+        id: existing.id,
+        sourceId,
+        path,
+        mime,
+        size,
+        mtime: mtime.toISOString(),
+        sha256,
+        indexedAt: existing.indexedAt,
+      });
       return;
     }
 

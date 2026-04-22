@@ -117,6 +117,11 @@ export class LocalFileConnector implements DataSource {
     return null;
   }
 
+  async statFile(path: string): Promise<{ size: number; mtime: Date }> {
+    const s = await stat(path);
+    return { size: s.size, mtime: s.mtime };
+  }
+
   async readFile(path: string): Promise<{ buffer: Buffer; sha256: string; size: number; mtime: Date }> {
     const s = await stat(path);
     if (s.size > MAX_FILE_BYTES) {
