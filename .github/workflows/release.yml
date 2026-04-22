@@ -1,0 +1,59 @@
+name: Release
+
+# Fires on any annotated tag matching `v*` (e.g. v0.1.1, v1.0.0).
+# Workflow: bump package.json version -> git push --follow-tags -> two
+# parallel matrix jobs (mac runner, windows runner) build their native
+# installers and append them to a single draft GitHub Release tagged the
+# same as the pushed tag. The draft stays unpublished until a human
+# clicks "Publish release" on github.com.
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: mac
+            os: macos-latest
+            # macos-latest is arm64; we also build x64 DMG cross-arch
+            # using prebuilt electron x64 binaries.
+            build_args: --mac --arm64 --x64
+          - name: windows
+            os: windows-latest
+            build_args: --win --x64
+
+    runs-on: ${{ matrix.os }}
+    name: build-${{ matrix.name }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Build bundle
+        working-directory: apps/desktop
+        run: npx electron-vite build
+
+      - name: Package + publish
+        working-directory: apps/desktop
+        env:
+          # GITHUB_TOKEN is auto-injected by Actions with contents:write.
+          # electron-builder reads GH_TOKEN, so alias it.
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: npx electron-builder ${{ matrix.build_args }} -c electron-builder.yml --publish always

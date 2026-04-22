@@ -2,6 +2,11 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "composite": true,
+    // tsc is used ONLY for typechecking (`tsc -b`). Emission is owned by
+    // electron-vite. Without noEmit, tsc overwrites dist/ with ESM output
+    // that Electron's CJS runtime can't load — the "Cannot use import
+    // statement" crash we just shipped in v0.1.0.
+    "noEmit": true,
     "outDir": "./dist",
     "rootDir": "./src",
     "baseUrl": ".",

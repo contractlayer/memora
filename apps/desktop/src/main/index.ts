@@ -1,14 +1,25 @@
 import { app, BrowserWindow, ipcMain, shell } from 'electron';
+import { appendFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
+
+// Persistent crash log — packaged apps lose stderr on macOS when launched
+// via Finder/open, so we append fatal errors to a file the user can read.
+const CRASH_LOG = join(app.getPath('userData'), 'startup.log');
+try { mkdirSync(app.getPath('userData'), { recursive: true }); } catch {}
+function logFatal(tag: string, err: unknown) {
+  const msg = `[${new Date().toISOString()}] ${tag}: ${err instanceof Error ? err.stack ?? err.message : String(err)}\n`;
+  try { appendFileSync(CRASH_LOG, msg); } catch {}
+  console.error(tag, err);
+}
 
 // Log unhandled rejections once instead of letting Node spam warnings.
 // Chokidar EMFILE / volume-unmount / permission errors should not take
 // down the app — we just record and carry on.
 process.on('unhandledRejection', (reason) => {
-  console.error('[unhandledRejection]', reason);
+  logFatal('[unhandledRejection]', reason);
 });
 process.on('uncaughtException', (err) => {
-  console.error('[uncaughtException]', err);
+  logFatal('[uncaughtException]', err);
 });
 
 // Electron-specific: surface render process / child process crashes which
@@ -30,6 +41,7 @@ import { registerLocaleHandlers } from './ipc/locale';
 import { registerConversationHandlers } from './ipc/conversations';
 import { initAppContext, getAppContext, shutdownAppContext } from './app-context';
 import { buildApplicationMenu } from './menu';
+import { initAutoUpdater } from './updater';
 import { Menu } from 'electron';
 import type { Locale } from '@shared/locales';
 import { SUPPORTED_LOCALES } from '@shared/locales';
@@ -65,7 +77,12 @@ function createWindow() {
 }
 
 app.whenReady().then(async () => {
-  await initAppContext();
+  try {
+    await initAppContext();
+  } catch (err) {
+    logFatal('[initAppContext]', err);
+    throw err;
+  }
 
   registerQueryHandlers(ipcMain);
   registerSourceHandlers(ipcMain);
@@ -96,6 +113,7 @@ app.whenReady().then(async () => {
 
   createWindow();
   applyMenuForLocale(getAppContext().settings.getLocale());
+  initAutoUpdater(() => mainWindow);
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();

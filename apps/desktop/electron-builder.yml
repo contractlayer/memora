@@ -1,23 +1,73 @@
 appId: com.memora.app
 productName: Memora
 copyright: Copyright © 2026 Memora
+
+# GitHub Releases auto-update. `electron-builder --publish always` uploads
+# DMG/EXE + latest*.yml + *.blockmap to a draft release, and the running
+# app polls the repo via electron-updater.
+publish:
+  - provider: github
+    owner: contractlayer
+    repo: memora
+    # draft = artifacts uploaded but release not visible to public until
+    # maintainer clicks "Publish release" on github.com. electron-updater
+    # ignores drafts, so rollout is gated.
+    releaseType: draft
+# Pinned because electron is hoisted to the workspace root and
+# electron-builder can't auto-detect it from here.
+electronVersion: 33.4.11
 directories:
-  output: release/${version}
+  # Output to APFS: the project lives on an ExFAT volume (/Volumes/T9)
+  # which fabricates AppleDouble `._*` companions for every write,
+  # breaking bundle integrity and macOS Launch Services. Writing the
+  # release artifacts to the APFS home directory avoids all of that.
+  output: /Users/thedinhnguyen/memora-release/${version}
   buildResources: ../../resources/icons
 
 files:
   - dist/**
   - "!node_modules/**/*.map"
+  # AppleDouble metadata sidecars from the ExFAT source volume — copying
+  # them into the .app / .exe bundle breaks codesign + asar integrity.
+  - "!**/._*"
+  - "!**/.DS_Store"
+  # Strip Linux binaries — never a build target.
+  - "!**/onnxruntime-node/bin/napi-v6/linux/**"
+  # Strip pdfjs dev bundles — we only load `legacy/build/pdf.mjs`.
+  - "!**/pdfjs-dist/build/**"
+  - "!**/pdfjs-dist/web/**"
+  - "!**/pdfjs-dist/image_decoders/**"
+  - "!**/pdfjs-dist/types/**"
+  # Strip exceljs browser bundle — we only use the Node build.
+  - "!**/exceljs/dist/es5/**"
+  - "!**/exceljs/dist/exceljs.bare.js"
+  - "!**/exceljs/dist/exceljs.bare.min.js"
+  - "!**/exceljs/dist/exceljs.js"
+  - "!**/exceljs/dist/exceljs.min.js"
+  - "!**/exceljs/spec/**"
+  # Strip test fixtures / docs across the tree.
+  - "!**/*.{md,markdown,MARKDOWN,MD,txt,TXT}"
+  - "!**/test/**"
+  - "!**/tests/**"
+  - "!**/__tests__/**"
+  - "!**/spec/**"
+  - "!**/examples/**"
+  - "!**/benchmarks/**"
+  - "!**/docs/**"
+  - "!**/*.d.ts.map"
 
+# Asar re-enabled now that node-llama-cpp (~900MB dead weight across
+# win-x64/cuda/vulkan variants) has been removed. Compressing via asar
+# roughly halves the installer size vs. unpacked.
 asar: true
-# LanceDB + better-sqlite3 + onnxruntime-node ship prebuilt native .node files
-# that must NOT be packed into asar (electron can't dlopen from asar).
 asarUnpack:
-  - node_modules/@lancedb/**
-  - node_modules/better-sqlite3/**
-  - node_modules/onnxruntime-node/**
-  - node_modules/@huggingface/**
-  - node_modules/sharp/**
+  # Native .node files cannot be dlopen'd from inside asar.
+  - "**/*.node"
+  - "**/node_modules/@lancedb/**"
+  - "**/node_modules/onnxruntime-node/**"
+  - "**/node_modules/better-sqlite3/**"
+  - "**/node_modules/keytar/**"
+  - "**/node_modules/sharp/**"
 
 mac:
   category: public.app-category.productivity
@@ -25,14 +75,27 @@ mac:
   target:
     - target: dmg
       arch: [arm64, x64]
-  hardenedRuntime: true
+  # Hardened runtime requires every bundled native .node/.dylib to be
+  # signed with the same Developer ID. Without a real cert we ad-hoc
+  # sign, which then fails library-validation at launch and kills the
+  # app silently. Disable hardenedRuntime for unsigned local builds;
+  # re-enable when a Developer ID is available + add entitlements.
+  hardenedRuntime: false
   gatekeeperAssess: false
+  # Strip Windows binaries from macOS builds.
+  files:
+    - "!**/onnxruntime-node/bin/napi-v6/win32/**"
+    - "!**/@lancedb/lancedb-win32-*/**"
 
 win:
   icon: ../../resources/icons/icon.ico
   target:
     - target: nsis
       arch: [x64]
+  # Strip macOS binaries from the Windows installer.
+  files:
+    - "!**/onnxruntime-node/bin/napi-v6/darwin/**"
+    - "!**/@lancedb/lancedb-darwin-*/**"
 
 linux:
   icon: ../../resources/icons/icon.png

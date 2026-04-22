@@ -1,6 +1,6 @@
 {
   "name": "@ai-search/desktop",
-  "version": "0.0.0",
+  "version": "0.1.1",
   "private": true,
   "productName": "Memora",
   "description": "Memora — ask anything about your data.",
@@ -19,12 +19,13 @@
   "dependencies": {
     "@huggingface/transformers": "^3.3.0",
     "@lancedb/lancedb": "^0.17.0",
+    "apache-arrow": "^18.1.0",
     "better-sqlite3": "^11.7.0",
     "chokidar": "^4.0.1",
+    "electron-updater": "^6.8.3",
     "exceljs": "^4.4.0",
     "keytar": "^7.9.0",
     "mammoth": "^1.9.0",
-    "node-llama-cpp": "^3.4.0",
     "officeparser": "^6.1.0",
     "onnxruntime-node": "^1.20.1",
     "pdfjs-dist": "^4.9.155",
